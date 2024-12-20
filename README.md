@@ -57,6 +57,151 @@
 
 
 --------
+# Описание решения
+--------
+##  "Кластеризация" 
+ Для отображения товаров с использованием t-SNE (t-Distributed Stochastic Neighbor Embedding) и позиционного кодирования, можно использовать следующий подход:
+
+### Шаги реализации
+
+1. **Определение модели с позиционным кодированием**:
+   - Использование класса `PositionalEncoding` для добавления позиционного кодирования к эмбеддингам товаров.
+
+2. **Получение эмбеддингов товаров**:
+   - Пропускание описаний товаров через модель трансформера для получения эмбеддингов.
+
+3. **Применение t-SNE**:
+   - Применение t-SNE для снижения размерности эмбеддингов.
+
+4. **Визуализация**:
+   - Визуализация результатов t-SNE.
+
+1. **Определение модели**:
+   - Класс добавляет позиционное кодирование к эмбеддингам товаров.
+```python
+class PositionalEncoding(torch.nn.Module):
+
+    def __init__(self,
+            d_model: int,
+            dropout: float = 0.1,
+            max_len: int = 5000,
+        ):
+        super().__init__()
+        self.dropout = torch.nn.Dropout(p=dropout)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
+        )
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0:, :, 0::2] = torch.sin(position * div_term)
+        pe[0:, :, 1::2] = torch.cos(position * div_term)
+        # позиционное кодирование
+        self.register_buffer("pe", pe)
+
+        self.d_model = d_model
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+        """
+
+        x = x + self.pe[:, : x.size(1)] / math.sqrt(self.d_model)
+
+        return self.dropout(x)
+
+class Model(LightningModule):
+
+    def __init__(
+        self,
+        lr=0.001,
+        use_pretrained=False,
+        dropout=0.2,
+        d_model=128,
+        n_vocab=30_522,
+        smoothing=0.1,
+    ):
+        super().__init__()
+        self.dropout = dropout
+
+        self.lr = lr
+        self.d_model = d_model
+        self.n_vocab = n_vocab
+        self.smoothing = smoothing
+
+        # Text embeddings and encoder
+        self.item_embeddings = torch.nn.Embedding(self.n_vocab, self.d_model)
+        self.pos_encoder = PositionalEncoding(
+            d_model=self.d_model, dropout=self.dropout
+        )
+        encoder_layer = torch.nn.TransformerEncoderLayer(
+            d_model=self.d_model, nhead=4, dropout=self.dropout, batch_first=True
+        )
+        self.encoder = torch.nn.TransformerEncoder(encoder_layer, num_layers=4)
+
+        # Output layer to project to vocabulary size
+        self.output_layer = torch.nn.Linear(self.d_model, self.n_vocab)
+
+        self.save_hyperparameters()
+
+
+    def encode_text(self, x):
+        x = self.item_embeddings(x)
+        x = self.pos_encoder(x)
+        x = self.encoder(x)
+        x = self.output_layer(x)  # Add projection to vocab size
+
+        return x  # Return full sequence output for language modeling
+
+    def forward(self, x):
+        x = self.item_embeddings(x)
+        x = self.pos_encoder(x)
+        x = self.encoder(x)
+        x = self.output_layer(x)  # Project to vocab size
+        return x
+```
+
+
+2. **Предобработка данных**:
+Как таковой ее нет, просто объеденяем все текстовые поля для добавления контекста:
+```python
+df = pd.read_csv(
+    config.PROCESSED_DATA_DIR / "articles.csv",
+    nrows=None,
+    dtype={
+        "article_id": str,
+    },
+)
+
+df["text"] = df.apply(
+    lambda x: " ".join(
+        [
+            str(x["prod_name"]),
+            str(x["product_type_name"]),
+            str(x["product_group_name"]),
+            str(x["graphical_appearance_name"]),
+            str(x["colour_group_name"]),
+            str(x["perceived_colour_value_name"]),
+            str(x["index_name"]),
+            str(x["section_name"]),
+            str(x["detail_desc"]),
+        ]
+    ),
+    axis=1,
+)
+```
+5. **Обучение**
+	После 100 эпох получили удовлетворительный loss для валидации и очень варьирующий на валидации. В качестве loss использовали кросс энтропию что посчитали удовлетворительным для класстеризации об этом далее:
+	```
+	Epoch 100/100, Train Loss: 0.2713, Val Loss: 0.5675
+	```
+6. **Применение t-SNE**:
+   - Применяем t-SNE для снижения размерности эмбеддингов до 2D.
+   и в качестве примера посмотрим 100 закодированных наименований:
+   ![report_tsne](./reports/figures/tsne.png)
+
+
 
 
 
