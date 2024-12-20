@@ -52,6 +52,7 @@ def main(
     input_transactions_path: Path = RAW_DATA_DIR / "transactions_train.csv",
     output_customers_path: Path = PROCESSED_DATA_DIR / "customers.csv",
     output_transactions_path: Path = PROCESSED_DATA_DIR / "transactions_train.csv",
+    top_k_articles: int = 1000,
     # ----------------------------------------------
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
@@ -61,6 +62,7 @@ def main(
         input_customers_path,
         output_transactions_path,
         output_customers_path,
+        top_articles_cnt=top_k_articles,
     )
     logger.success("Processing dataset complete.")
     # -----------------------------------------
