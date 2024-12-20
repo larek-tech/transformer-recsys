@@ -1,22 +1,29 @@
+import ast
+
+import pandas as pd
 import torch
 from torch.utils.data.dataset import Dataset
-import ast
 
 
 class CustomerDataset(Dataset):
-    def __init__(self, df, max_len, article_id_map):
+    """Custom dataset class."""
+
+    def __init__(
+        self, df: pd.DataFrame, max_len: int, article_id_map: dict[int, int]
+    ) -> None:
         self.df = df
         self.max_len = max_len
         self.article_id_map = article_id_map
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx):
-        articles = self.df.iloc[idx]["articles"]
-        if isinstance(articles, str):
-            articles = ast.literal_eval(articles)
-        articles = [self.article_id_map[article] for article in articles]
+    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
+        article_ids = self.df.iloc[idx]["articles"]
+        if isinstance(article_ids, str):
+            article_ids = ast.literal_eval(article_ids)
+
+        articles = [self.article_id_map[article] for article in article_ids]
         # <sos> - 1
         # <eos> - 2
         # <pad> - 0

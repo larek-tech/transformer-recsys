@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import typer
 import pandas as pd
+import typer
 from loguru import logger
 from tqdm import tqdm
 
@@ -39,7 +39,7 @@ def filter_transactions(
     logger.info(f"filtered customers to {len(customers)}")
 
     logger.info(f"saving transactions into {processed_transactions_path}")
-    customers.to_csv(processed_transactions_path)
+    transactions.to_csv(processed_transactions_path)
 
     logger.info(f"saving customers into {processed_customers_path}")
     customers.to_csv(processed_customers_path)
