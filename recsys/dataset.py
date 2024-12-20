@@ -3,8 +3,8 @@ from pathlib import Path
 import torch
 from transformers import AutoTokenizer, AutoModel
 
-import typer
 import pandas as pd
+import typer
 from loguru import logger
 
 from recsys.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
