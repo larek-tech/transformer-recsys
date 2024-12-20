@@ -8,7 +8,7 @@
 
 ```
 ├── LICENSE            <- Лицензия с открытым исходным кодом, если она выбрана
-├── Makefile           <- Makefile с удобными командами, например, `make data` или `make train`
+├── Makefile           - Makefile с удобными командами, например, `make data` или `make train`
 ├── README.md          <- Главный README для разработчиков, использующих этот проект.
 ├── data
 │   ├── external       <- Данные из сторонних источников.
@@ -58,3 +58,10 @@
 
 --------
 
+
+
+# TODO:
+- [ ] move dataset preparation to `dataset.py`
+- [ ] move feature engineering to `features.py`
+- [ ] move modeling to `modeling` package
+- [ ] move models into models folder
