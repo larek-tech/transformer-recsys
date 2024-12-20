@@ -202,7 +202,76 @@ df["text"] = df.apply(
    ![report_tsne](./reports/figures/tsne.png)
 
 
+## Получение эмбедингов
 
+Модель энкодер - bert-base-cased  
+У каждого товара брался текст с колонок 
+[   prod_name, 
+    product_type_name, 
+    product_group_name, 
+    graphical_appearance_name, 
+    colour_group_name, 
+    perceived_colour_value_name, 
+    index_name, 
+    section_name, 
+    detail_desc
+] и по этим данным строился эмбеддинг.  
+Также были закодированы системные токены `<pad>` `<sos>` и `<eos>`
+
+
+## Модель Decoder Obly Transformer
+
+В первом случае, для обучения только на id товаров была выбрана такая архитектура модели:
+`
+Transformer(
+  (embedding): Embedding(1003, 256)
+  (pos_emb): SinusoidalPosEmb()
+  (blocks): ModuleList(
+    (0-7): 8 x TransformerBlock(
+      (norm1): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+      (multihead_attn): MultiheadAttention(
+        (out_proj): NonDynamicallyQuantizableLinear(in_features=256, out_features=256, bias=True)
+      )
+      (norm2): LayerNorm((256,), eps=1e-05, elementwise_affine=True)
+      (mlp): Sequential(
+        (0): Linear(in_features=256, out_features=1024, bias=True)
+        (1): ELU(alpha=1.0)
+        (2): Linear(in_features=1024, out_features=256, bias=True)
+      )
+    )
+  )
+  (fc_out): Linear(in_features=256, out_features=1003, bias=True)
+)
+`
+
+Во втором случае с использованием эмбеддингов BERT архитектура выглядит так:
+Transformer(
+  (pos_emb): SinusoidalPosEmb()
+  (blocks): ModuleList(
+    (0-7): 8 x TransformerBlock(
+      (norm1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+      (multihead_attn): MultiheadAttention(
+        (out_proj): NonDynamicallyQuantizableLinear(in_features=768, out_features=768, bias=True)
+      )
+      (norm2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+      (mlp): Sequential(
+        (0): Linear(in_features=768, out_features=3072, bias=True)
+        (1): ELU(alpha=1.0)
+        (2): Linear(in_features=3072, out_features=768, bias=True)
+      )
+    )
+  )
+  (fc_out): Linear(in_features=768, out_features=1003, bias=True)
+) 
+
+# Обучение 
+Первый вариант 100 эпох:
+![alt text](image-1.png)
+
+Второй вариант 60 эпох:
+![alt text](image.png)
+
+# Результаты генерации
 
 
 # TODO:
