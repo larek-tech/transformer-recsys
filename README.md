@@ -62,6 +62,7 @@
 ##  "Кластеризация" 
  Для отображения товаров с использованием t-SNE (t-Distributed Stochastic Neighbor Embedding) и позиционного кодирования, можно использовать следующий подход:
 
+
 ### Шаги реализации
 
 1. **Определение модели с позиционным кодированием**:
@@ -222,7 +223,7 @@ df["text"] = df.apply(
 ## Модель Decoder Obly Transformer
 
 В первом случае, для обучения только на id товаров была выбрана такая архитектура модели:
-`
+```
 Transformer(
   (embedding): Embedding(1003, 256)
   (pos_emb): SinusoidalPosEmb()
@@ -242,9 +243,10 @@ Transformer(
   )
   (fc_out): Linear(in_features=256, out_features=1003, bias=True)
 )
-`
+```
 
 Во втором случае с использованием эмбеддингов BERT архитектура выглядит так:
+```
 Transformer(
   (pos_emb): SinusoidalPosEmb()
   (blocks): ModuleList(
@@ -263,7 +265,7 @@ Transformer(
   )
   (fc_out): Linear(in_features=768, out_features=1003, bias=True)
 ) 
-
+```
 # Обучение 
 Первый вариант 100 эпох:
 ![alt text](image-1.png)
@@ -272,10 +274,3 @@ Transformer(
 ![alt text](image.png)
 
 # Результаты генерации
-
-
-# TODO:
-- [ ] move dataset preparation to `dataset.py`
-- [ ] move feature engineering to `features.py`
-- [ ] move modeling to `modeling` package
-- [ ] move models into models folder
