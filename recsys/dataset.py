@@ -2,7 +2,7 @@ from pathlib import Path
 
 import torch
 from transformers import AutoTokenizer, AutoModel
-
+import numpy as np
 import pandas as pd
 import typer
 from loguru import logger
@@ -60,6 +60,59 @@ def filter_transactions(
     logger.info(f"saving articles into {processed_articles_path}")
     articles.to_csv(processed_articles_path)
 
+
+def test_train_split(transactions_path: Path | str, split_output_path: Path) -> None:
+    df = pd.read_csv(transactions_path)
+    test_size = 0.2
+    num_samples = df.shape[0]
+    num_test_samples = int(num_samples * test_size)
+    random_state = 42
+
+    # Перемешивание индексов
+    np.random.seed(random_state)
+    indices = np.arange(num_samples)
+    np.random.shuffle(indices)
+    
+    
+    # Разделение индексов на обучающую и тестовую выборки
+    test_indices = indices[:num_test_samples]
+    train_indices = indices[num_test_samples:]
+
+    X_train = df.iloc[train_indices]
+    X_test = df.iloc[test_indices]
+
+    X_train.to_csv(split_output_path / "x_train_ids.csv")
+    X_test.to_csv(split_output_path / "x_test_ids.csv")
+    logger.info("splitted into test and train split")
+
+
+def group_transactions(
+    transactions_path: Path | str,
+    grouped_transaction_path: Path | str,
+) -> None:    
+    transactions = pd.read_csv(transactions_path)
+
+    transactions['t_dat'] = pd.to_datetime(transactions['t_dat'])
+    transactions = transactions.sort_values(by='t_dat')
+    grouped_transactions = transactions.groupby('customer_id')['article_id'].apply(list).reset_index()
+    grouped_transactions.columns = ['customer_id', 'articles']
+    
+    grouped_transactions["sequence_length"] = grouped_transactions["articles"].apply(lambda x: len(x))
+    
+    min_sequence_length = 2
+    min_sequence_mask = grouped_transactions["sequence_length"]< min_sequence_length
+    
+    
+    max_sequence_length = 10
+    max_sequence_mask =grouped_transactions["sequence_length"] > max_sequence_length
+
+    grouped_transactions = grouped_transactions[~min_sequence_mask & ~max_sequence_mask]
+    # grouped_transactions[max_sequence_mask].shape, grouped_transactions[
+    #     max_sequence_mask
+    # ].shape[0] / grouped_transactions.shape[0] * 100 # type: ignore
+    grouped_transactions.to_csv(grouped_transaction_path, index=False)
+
+
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
@@ -69,7 +122,9 @@ def main(
     output_customers_path: Path = PROCESSED_DATA_DIR / "customers.csv",
     output_transactions_path: Path = PROCESSED_DATA_DIR / "transactions_train.csv",
     output_articles_path: Path = PROCESSED_DATA_DIR / "articles.csv",
+    output_grouped_transactions_path: Path = PROCESSED_DATA_DIR / "grouped_transactions.csv",
     top_k_articles: int = 1000,
+    split: bool = False
     # ----------------------------------------------
 ) -> None:
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
@@ -85,6 +140,17 @@ def main(
     )
     logger.success("Processing dataset complete.")
     # -----------------------------------------
+    if split:
+        group_transactions(
+            output_transactions_path, 
+            output_grouped_transactions_path,
+        )
+        logger.success("grouped transactions by users")
+        test_train_split(
+            output_grouped_transactions_path,
+            PROCESSED_DATA_DIR,
+        )
+        logger.success("train split complete.")
 
 def get_embeddings(
         text: str

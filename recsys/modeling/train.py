@@ -74,7 +74,7 @@ def _prepare_data(cfg: ModelConfig) -> tuple[DataLoader, DataLoader, pd.DataFram
 
     # Load embeds
     embedings_df: pd.DataFrame = pd.read_pickle(
-        config.PROCESSED_DATA_DIR / "articles_embedings.pkl"
+        config.PROCESSED_DATA_DIR / "articles.pkl"
     )
     embedings_df["article_id"] = embedings_df["article_id"].map(article_id_map)
 
@@ -90,11 +90,11 @@ def _prepare_data(cfg: ModelConfig) -> tuple[DataLoader, DataLoader, pd.DataFram
         dataset_train,
         batch_size=cfg.batch_size,
         shuffle=True,
-        num_workers=8,
+        # num_workers=8,
         drop_last=True,
     )
     data_loader_test = DataLoader(
-        dataset_test, batch_size=cfg.batch_size, shuffle=True, num_workers=8
+        dataset_test, batch_size=cfg.batch_size, shuffle=True, # num_workers=8
     )
     return data_loader_train, data_loader_test, embedings_df
 
@@ -160,7 +160,7 @@ def train_transformer(cfg: ModelConfig) -> None:
             scaler.step(optimizer)
             scaler.update()
             if index % 20 == 0:
-                logger.info("train_loss", loss, end="\r")
+                logger.info(f"train_loss {loss} on {index}/{len(data_loader_train)}")
             # Log training loss and entropy
             training_loss_logger.append(loss.item())
             with torch.no_grad():
