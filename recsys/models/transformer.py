@@ -3,8 +3,7 @@ import math
 import pandas as pd
 import torch
 from torch import nn
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from recsys.config import device
 
 
 class TokenDrop(nn.Module):

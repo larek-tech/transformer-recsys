@@ -7,11 +7,11 @@ import pandas as pd
 import typer
 from loguru import logger
 
-from recsys.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from recsys.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, device
 
 app = typer.Typer()
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
 model = AutoModel.from_pretrained("bert-base-cased")
 model = model.to(device)
@@ -53,7 +53,7 @@ def filter_transactions(
 
     logger.info(f"saving customers into {processed_customers_path}")
     customers.to_csv(processed_customers_path)
-    
+
     # Cut articles
     articles = articles[articles["article_id"].isin(top_article_ids)]
 
@@ -72,8 +72,7 @@ def test_train_split(transactions_path: Path | str, split_output_path: Path) -> 
     np.random.seed(random_state)
     indices = np.arange(num_samples)
     np.random.shuffle(indices)
-    
-    
+
     # Разделение индексов на обучающую и тестовую выборки
     test_indices = indices[:num_test_samples]
     train_indices = indices[num_test_samples:]
@@ -89,22 +88,25 @@ def test_train_split(transactions_path: Path | str, split_output_path: Path) -> 
 def group_transactions(
     transactions_path: Path | str,
     grouped_transaction_path: Path | str,
-) -> None:    
+) -> None:
     transactions = pd.read_csv(transactions_path)
 
-    transactions['t_dat'] = pd.to_datetime(transactions['t_dat'])
-    transactions = transactions.sort_values(by='t_dat')
-    grouped_transactions = transactions.groupby('customer_id')['article_id'].apply(list).reset_index()
-    grouped_transactions.columns = ['customer_id', 'articles']
-    
-    grouped_transactions["sequence_length"] = grouped_transactions["articles"].apply(lambda x: len(x))
-    
+    transactions["t_dat"] = pd.to_datetime(transactions["t_dat"])
+    transactions = transactions.sort_values(by="t_dat")
+    grouped_transactions = (
+        transactions.groupby("customer_id")["article_id"].apply(list).reset_index()
+    )
+    grouped_transactions.columns = ["customer_id", "articles"]
+
+    grouped_transactions["sequence_length"] = grouped_transactions["articles"].apply(
+        lambda x: len(x)
+    )
+
     min_sequence_length = 2
-    min_sequence_mask = grouped_transactions["sequence_length"]< min_sequence_length
-    
-    
+    min_sequence_mask = grouped_transactions["sequence_length"] < min_sequence_length
+
     max_sequence_length = 10
-    max_sequence_mask =grouped_transactions["sequence_length"] > max_sequence_length
+    max_sequence_mask = grouped_transactions["sequence_length"] > max_sequence_length
 
     grouped_transactions = grouped_transactions[~min_sequence_mask & ~max_sequence_mask]
     # grouped_transactions[max_sequence_mask].shape, grouped_transactions[
@@ -122,9 +124,10 @@ def main(
     output_customers_path: Path = PROCESSED_DATA_DIR / "customers.csv",
     output_transactions_path: Path = PROCESSED_DATA_DIR / "transactions_train.csv",
     output_articles_path: Path = PROCESSED_DATA_DIR / "articles.csv",
-    output_grouped_transactions_path: Path = PROCESSED_DATA_DIR / "grouped_transactions.csv",
+    output_grouped_transactions_path: Path = PROCESSED_DATA_DIR
+    / "grouped_transactions.csv",
     top_k_articles: int = 1000,
-    split: bool = False
+    split: bool = False,
     # ----------------------------------------------
 ) -> None:
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
@@ -142,7 +145,7 @@ def main(
     # -----------------------------------------
     if split:
         group_transactions(
-            output_transactions_path, 
+            output_transactions_path,
             output_grouped_transactions_path,
         )
         logger.success("grouped transactions by users")
@@ -152,10 +155,11 @@ def main(
         )
         logger.success("train split complete.")
 
-def get_embeddings(
-        text: str
-    ):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding='max_length')
+
+def get_embeddings(text: str):
+    inputs = tokenizer(
+        text, return_tensors="pt", truncation=True, max_length=512, padding="max_length"
+    )
     inputs = inputs.to(device)
     with torch.no_grad():
         outputs = model(**inputs)
@@ -207,7 +211,7 @@ def process_articles(
         objs=[df, tokens_df],
         ignore_index=True,
     )
-    df['Embed_comb_text'] = df['text'].apply(lambda x: get_embeddings(x))
+    df["Embed_comb_text"] = df["text"].apply(lambda x: get_embeddings(x))
     df.to_pickle(output_articles_path)
 
 

@@ -3,7 +3,7 @@
 
 Представить задачу рекомендаций как задачу предсказания ряда элементов, которые хотим рекомендовать. Сделать свой transformer decoder для решения [этой задачи]( https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations).
 
-## Project Organization
+## Структура проекта
 
 
 ```
@@ -274,3 +274,29 @@ Transformer(
 ![alt text](image.png)
 
 # Результаты генерации
+
+
+# Установка
+Для запуска проекта необходимо выполнить следующие шаги:
+1. Клонировать репозиторий:
+```bash
+git clone https://github.com/larek-tech/transformer-recsys.git
+```
+2. Установить зависимости:
+```bash
+poetry install
+```
+## Запуск модулей
+1. Предобработка датасета:
+### Для обучения рекомендательной модели
+```bash
+poetry run python -m recsys.dataset main --split 
+```
+### Для кластеризации
+```bash
+poetry run python -m recsys.dataset embeddings
+```
+## Обучение рекомендательной модели
+```bash
+poetry run python -m recsys.modeling.train 
+```

@@ -1,5 +1,5 @@
 import ast
-
+import datetime as dt
 import pandas as pd
 import torch
 import typer
@@ -13,7 +13,9 @@ from tqdm import tqdm, trange
 from recsys import config
 from recsys.models import transformer as tf, transformer_dataset as dataset
 
+
 app = typer.Typer()
+device = config.device
 
 
 class ModelConfig:
@@ -64,11 +66,15 @@ def _get_unique_articles(
 
 def _prepare_data(cfg: ModelConfig) -> tuple[DataLoader, DataLoader, pd.DataFrame]:
     """Load datasets and create dataloaders and embeddings for training the transformer."""
-
-    # Load train/test dataframes
-    df_train = pd.read_csv(config.PROCESSED_DATA_DIR / "x_train_ids.csv")
-    df_test = pd.read_csv(config.PROCESSED_DATA_DIR / "x_test_ids.csv")
-
+    try:
+        # Load train/test dataframes
+        df_train = pd.read_csv(config.PROCESSED_DATA_DIR / "x_train_ids.csv")
+        df_test = pd.read_csv(config.PROCESSED_DATA_DIR / "x_test_ids.csv")
+    except Exception as e:
+        logger.error(f"unable to load csv {e}")
+        logger.error(
+            "Please run the preprocessing script first:\n python3 -m recsys.dataset main --split"
+        )
     # Get uniques articles map <id, count>
     article_id_map = _get_unique_articles(df_train, df_test)
 
@@ -94,12 +100,22 @@ def _prepare_data(cfg: ModelConfig) -> tuple[DataLoader, DataLoader, pd.DataFram
         drop_last=True,
     )
     data_loader_test = DataLoader(
-        dataset_test, batch_size=cfg.batch_size, shuffle=True, # num_workers=8
+        dataset_test,
+        batch_size=cfg.batch_size,
+        shuffle=True,  # num_workers=8
     )
     return data_loader_train, data_loader_test, embedings_df
 
 
-def train_transformer(cfg: ModelConfig) -> None:
+def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
+    """Train a transformer model.
+
+    Args:
+        cfg (ModelConfig): _description_
+
+    Returns:
+        tuple[list[float], list[float]]: train losses and entropy
+    """
     data_loader_train, _, embeds = _prepare_data(cfg)
 
     # Create model
@@ -167,6 +183,8 @@ def train_transformer(cfg: ModelConfig) -> None:
                 dist = Categorical(logits=pred)
                 entropy_logger.append(dist.entropy().mean().item())
 
+    logger.success(f"Training complete. saving model into {file_path}")
+
     def save_model(model, file_path):
         torch.save(model.state_dict(), file_path)
         logger.info(f"Model has been saved into {file_path}")
@@ -174,11 +192,31 @@ def train_transformer(cfg: ModelConfig) -> None:
     file_path = config.MODELS_DIR / "model_100_epoch.pth"
     save_model(tf_generator, file_path)
 
+    return training_loss_logger, entropy_logger
+
+
+def save_report(training_loss_logger, entropy_logger):
+    report = pd.DataFrame(
+        {
+            "training_loss": training_loss_logger,
+            "entropy": entropy_logger,
+        }
+    )
+    report_path = (
+        config.REPORTS_DIR
+        / f"training_report_{dt.datetime.now().strftime('%d_%m_%y_%H_%M')}.csv"
+    )
+
+    report.to_csv(report_path, index=False)
+    logger.success(f"Report has been saved into {report_path}")
+
 
 @app.command()
-def main(path: str = "model_config.yaml"):
+def main(path: str = "model_config.yaml", plot: bool = False):
     cfg = ModelConfig(path)
-    train_transformer(cfg)
+    training_loss, entropy = train_transformer(cfg)
+    if plot:
+        save_report(training_loss, entropy)
 
 
 if __name__ == "__main__":

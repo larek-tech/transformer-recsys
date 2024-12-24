@@ -2,6 +2,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
+import torch
 
 # Load environment variables from .env file if it exists
 load_dotenv()
@@ -23,6 +24,13 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 
 NUMPY_RANDOM_STATE: int = 42
 ARTICLES_CNT: int = 1000
+
+device = torch.device(
+    "mps"
+    if torch.backends.mps.is_available()
+    else "cuda" if torch.cuda.is_available() else "cpu"
+)
+logger.info(f"Using device: {device}")
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
