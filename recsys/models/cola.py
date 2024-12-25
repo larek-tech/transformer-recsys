@@ -1,8 +1,9 @@
-import torch
-from torch import nn
 import math
-from transformers import BertTokenizer
+
+import torch
 from pytorch_lightning import LightningModule
+from torch import nn
+from transformers import BertTokenizer
 
 TOKENIZER = BertTokenizer.from_pretrained("bert-base-uncased")
 

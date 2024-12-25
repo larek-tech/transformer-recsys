@@ -1,8 +1,8 @@
 from pathlib import Path
 
+import torch
 from dotenv import load_dotenv
 from loguru import logger
-import torch
 
 # Load environment variables from .env file if it exists
 load_dotenv()

@@ -266,7 +266,10 @@ Transformer(
   (fc_out): Linear(in_features=768, out_features=1003, bias=True)
 ) 
 ```
-# Обучение 
+# Обучение
+![training_report](training_loss.jpg)
+![entropy](entropy.jpg)
+
 Первый вариант 100 эпох:
 ![alt text](image-1.png)
 
@@ -296,7 +299,23 @@ poetry run python -m recsys.dataset main --split
 ```bash
 poetry run python -m recsys.dataset embeddings
 ```
-## Обучение рекомендательной модели
+## Конфигурация модели
+```yaml
+lr: 1e-4  # скорость обучения
+epochs: 10  # количество эпох
+batch_size: 256  # размер батча для обучения
+seq_max_len: 24  # максимальная длина последовательности токенов в одном сем
+hidden_size: 768  # размер скрытого слоя
+num_heads: 8  # количество голов в многоголовом внимании
+num_layers: 8  # количество слоев
+num_embeds: 1003  # количество токенов (1000 товаров + 3 системных токена)
+```
+
+### Обучение рекомендательной модели
 ```bash
 poetry run python -m recsys.modeling.train 
+```
+### Запуск модели
+```bash
+poetry run python -m recsys.modeling.predict
 ```

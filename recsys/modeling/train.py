@@ -1,5 +1,7 @@
 import ast
 import datetime as dt
+from pathlib import Path
+
 import pandas as pd
 import torch
 import typer
@@ -11,8 +13,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm, trange
 
 from recsys import config
-from recsys.models import transformer as tf, transformer_dataset as dataset
-
+from recsys.models import transformer as tf
+from recsys.models import transformer_dataset as dataset
 
 app = typer.Typer()
 device = config.device
@@ -21,7 +23,7 @@ device = config.device
 class ModelConfig:
     """Config for transformer training."""
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: Path | str) -> None:
         with open(path, "r") as cfg_data:
             cfg = yaml.safe_load(cfg_data)
 
@@ -108,17 +110,9 @@ def _prepare_data(cfg: ModelConfig) -> tuple[DataLoader, DataLoader, pd.DataFram
 
 
 def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
-    """Train a transformer model.
-
-    Args:
-        cfg (ModelConfig): _description_
-
-    Returns:
-        tuple[list[float], list[float]]: train losses and entropy
-    """
     data_loader_train, _, embeds = _prepare_data(cfg)
 
-    # Create model
+    # Создание модели
     tf_generator = tf.Transformer(
         embedings_df=embeds,
         num_emb=cfg.num_embeds,
@@ -127,17 +121,15 @@ def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
         num_heads=cfg.num_heads,
     ).to(tf.device)
 
-    # Initialize the optimizer with above parameters
+    # Инициализация оптимизатора с вышеуказанными параметрами
     optimizer = optim.Adam(tf_generator.parameters(), lr=cfg.lr)
 
-    # Scaler for mixed precision training
+    # Масштабировщик для обучения с смешанной точностью
     scaler = torch.cuda.amp.GradScaler()
 
-    # Define the loss function
+    # Определение функции потерь
     loss_fn = nn.CrossEntropyLoss(reduction="none")
 
-    # Custom transform that will randomly replace a token with <pad>
-    td = tf.TokenDrop(prob=0.2)
 
     num_model_params = 0
     for param in tf_generator.parameters():
@@ -147,49 +139,49 @@ def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
         f"This Model Has {num_model_params} (Approximately {num_model_params//1e6} Million) Parameters!"
     )
 
-    # Initialize training loss logger and entropy logger
+    # Инициализация логгера потерь при обучении и логгера энтропии
     training_loss_logger = []
     entropy_logger = []
 
-    for _ in trange(0, cfg.epochs, leave=False, desc="Epoch"):
+    for _ in trange(0, cfg.epochs, leave=False, desc="Эпоха"):
         tf_generator.train()
 
         for index, text in enumerate(tqdm(data_loader_train)):
-            # Convert text to tokenized input
+            # Преобразование текста в токенизированный ввод
 
             input_text, output_text = text
             input_text = input_text.to(tf.device)
             output_text = output_text.to(tf.device)
-            # Generate predictions
+            # Генерация предсказаний
             with torch.cuda.amp.autocast():
                 pred = tf_generator(input_text)
 
-            # Calculate loss with masked cross-entropy
+            # Вычисление потерь с маскированной кросс-энтропией
             mask = (output_text != 0).float()
             loss = (
                 loss_fn(pred.transpose(1, 2), output_text) * mask
             ).sum() / mask.sum()
 
-            # Backpropagation
+            # Обратное распространение ошибки
             optimizer.zero_grad()
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
             if index % 20 == 0:
-                logger.info(f"train_loss {loss} on {index}/{len(data_loader_train)}")
-            # Log training loss and entropy
+                logger.info(f"train_loss {loss} на {index}/{len(data_loader_train)}")
+            # Логирование потерь при обучении и энтропии
             training_loss_logger.append(loss.item())
             with torch.no_grad():
                 dist = Categorical(logits=pred)
                 entropy_logger.append(dist.entropy().mean().item())
-
+    
+    file_path = config.MODELS_DIR / f"model_{cfg.epochs}_epoch.pth"
     logger.success(f"Training complete. saving model into {file_path}")
 
     def save_model(model, file_path):
         torch.save(model.state_dict(), file_path)
         logger.info(f"Model has been saved into {file_path}")
 
-    file_path = config.MODELS_DIR / "model_100_epoch.pth"
     save_model(tf_generator, file_path)
 
     return training_loss_logger, entropy_logger

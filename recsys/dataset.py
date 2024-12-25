@@ -1,11 +1,11 @@
 from pathlib import Path
 
-import torch
-from transformers import AutoTokenizer, AutoModel
 import numpy as np
 import pandas as pd
+import torch
 import typer
 from loguru import logger
+from transformers import AutoModel, AutoTokenizer
 
 from recsys.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, device
 

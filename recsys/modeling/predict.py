@@ -1,18 +1,19 @@
 from pathlib import Path
 
+import pandas as pd
+import torch
+import torch.nn as nn
 import typer
 from loguru import logger
-from tqdm import tqdm
-import torch 
 from torch.distributions import Categorical
-import torch.nn as nn
 from torch.utils.data import DataLoader
-import pandas as pd
+from tqdm import tqdm
 
 from recsys.config import MODELS_DIR, PROCESSED_DATA_DIR
-from recsys.models.transformer_dataset import CustomerDataset
-from recsys.modeling.train import ModelConfig, _get_unique_articles, _prepare_data
+from recsys.modeling.train import (ModelConfig, _get_unique_articles,
+                                   _prepare_data)
 from recsys.models import transformer as tf
+from recsys.models.transformer_dataset import CustomerDataset
 
 app = typer.Typer()
 
@@ -75,15 +76,20 @@ def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     df_test_path: Path  = PROCESSED_DATA_DIR / "x_test_ids.csv",
     df_train_path: Path = PROCESSED_DATA_DIR / "x_train_ids.csv",
-    model_path: Path = MODELS_DIR / "model_160_epoch.pth",
-    cfg_path: Path = "model_config.yaml",
+    model_name : str = "model_20_epoch.pth",
+    cfg_path: Path | str  = "model_config.yaml",
     # -----------------------------------------
 ):
-    cfg = ModelConfig(cfg_path)
-    data_loader_train, _, embeds = _prepare_data(cfg)
+    try:
+        model_path: Path = MODELS_DIR / model_name
+        cfg = ModelConfig(cfg_path)
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        return
+    _, _, embeds = _prepare_data(cfg)
 
     model = tf.Transformer(embedings_df=embeds, num_emb=cfg.num_embeds, num_layers=cfg.num_layers, 
-                           hidden_size=cfg.hidden_size, num_heads=cfg.num_heads).to(tf.device)
+                           hidden_size=cfg.hidden_size, num_heads=cfg.num_heads).to(device=tf.device)
     model.load_state_dict(torch.load(model_path))
 
     df_test = pd.read_csv(df_test_path)    

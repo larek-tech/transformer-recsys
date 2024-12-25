@@ -1,8 +1,10 @@
 import math
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import nn
+
 from recsys.config import device
 
 
@@ -118,9 +120,8 @@ class Transformer(nn.Module):
     ) -> None:
         super(Transformer, self).__init__()
 
-        # Token embeddings
         self.embeddings_tensor = torch.tensor(
-            embedings_df["Embed_comb_text"].values.tolist(), device=device
+            data=np.array(embedings_df["Embed_comb_text"].values.tolist()), device=device
         )
         # Positional embeddings
         self.pos_emb = SinusoidalPosEmb(hidden_size)
