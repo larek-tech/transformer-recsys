@@ -77,7 +77,7 @@ def main(
     df_test_path: Path  = PROCESSED_DATA_DIR / "x_test_ids.csv",
     df_train_path: Path = PROCESSED_DATA_DIR / "x_train_ids.csv",
     model_name : str = "model_20_epoch.pth",
-    cfg_path: Path | str  = "model_config.yaml",
+    cfg_path: str  = "model_config.yaml",
     # -----------------------------------------
 ):
     try:
