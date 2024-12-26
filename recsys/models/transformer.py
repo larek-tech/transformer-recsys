@@ -114,34 +114,38 @@ class Transformer(nn.Module):
         self,
         embedings_df: pd.DataFrame,
         num_emb: int,
-        hidden_size: int = 768,
+        hidden_size: int = 256,
         num_layers: int = 3,
         num_heads: int = 4,
     ) -> None:
         super(Transformer, self).__init__()
-
-        self.embeddings_tensor = torch.tensor(
-            data=np.array(embedings_df["Embed_comb_text"].values.tolist()), device=device
+        self.hidden_size = hidden_size
+        self.embeddings_tensor = nn.Embedding.from_pretrained(
+            embeddings=torch.Tensor(
+                np.array(embedings_df["Embed_comb_text"].values.tolist())
+            ),
         )
+        self.fc = nn.Linear(768, self.hidden_size)
         # Positional embeddings
-        self.pos_emb = SinusoidalPosEmb(hidden_size)
+        self.pos_emb = SinusoidalPosEmb(self.hidden_size)
 
         # List of Transformer blocks
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, num_heads) for _ in range(num_layers)]
+            [TransformerBlock(self.hidden_size, num_heads) for _ in range(num_layers)]
         )
 
         # Output layer
-        self.fc_out = nn.Linear(hidden_size, num_emb)
+        self.fc_out = nn.Linear(self.hidden_size, num_emb)
 
     def forward(self, input_seq: torch.Tensor) -> torch.Tensor:
         # Mask for padding tokens
         input_key_mask = input_seq == 0
 
-        h = 768
+        h = self.hidden_size
         bs, l = input_seq.shape
 
-        output_tensor = self.embeddings_tensor[input_seq]
+        output_tensor = self.embeddings_tensor(input_seq)
+        output_tensor = self.fc(output_tensor)
 
         # Add positional embeddings to token embeddings
         seq_indx = torch.arange(l, device=input_seq.device)

@@ -15,6 +15,8 @@ from tqdm import tqdm, trange
 from recsys import config
 from recsys.models import transformer as tf
 from recsys.models import transformer_dataset as dataset
+from transformers import get_linear_schedule_with_warmup
+
 
 app = typer.Typer()
 device = config.device
@@ -123,13 +125,17 @@ def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
 
     # Инициализация оптимизатора с вышеуказанными параметрами
     optimizer = optim.Adam(tf_generator.parameters(), lr=cfg.lr)
+    t_total = len(data_loader_train) * cfg.epochs
+    warmup_steps = int(0.1 * t_total)  # 10% warmup
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=t_total
+    )
 
     # Масштабировщик для обучения с смешанной точностью
     scaler = torch.cuda.amp.GradScaler()
 
     # Определение функции потерь
     loss_fn = nn.CrossEntropyLoss(reduction="none")
-
 
     num_model_params = 0
     for param in tf_generator.parameters():
@@ -174,7 +180,8 @@ def train_transformer(cfg: ModelConfig) -> tuple[list[float], list[float]]:
             with torch.no_grad():
                 dist = Categorical(logits=pred)
                 entropy_logger.append(dist.entropy().mean().item())
-    
+        scheduler.step()
+
     file_path = config.MODELS_DIR / f"model_{cfg.epochs}_epoch.pth"
     logger.success(f"Training complete. saving model into {file_path}")
 

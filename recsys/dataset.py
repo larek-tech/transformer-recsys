@@ -14,6 +14,7 @@ app = typer.Typer()
 
 tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
 model = AutoModel.from_pretrained("bert-base-cased")
+model.eval()
 model = model.to(device)
 
 
